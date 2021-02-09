@@ -17,6 +17,7 @@ import { Review } from './entities/review.entity';
 export class ReviewsService {
   constructor(
     @InjectRepository(Review) private readonly reviews: Repository<Review>,
+    @InjectRepository(Rating) private readonly ratings: Repository<Rating>,
     @InjectRepository(Podcast) private readonly podcasts: Repository<Podcast>,
   ) {}
 
@@ -61,14 +62,27 @@ export class ReviewsService {
     podcastId,
   }: GetReviewsInput): Promise<GetReviewsOutput> {
     try {
-      const reviews = await this.reviews.find({
-        where: { podcastId },
+      const [paginatedReviews, reviewsCount] = await this.reviews.findAndCount({
+        where: { podcast: { id: podcastId } },
         order: { createdAt: 'DESC' },
         relations: ['creator'],
-        skip: (page - 1) * 50,
-        take: 50,
+        skip: (page - 1) * 1,
+        take: 1,
       });
-      return { ok: true, reviews };
+      const promises = paginatedReviews.map(async (review) => {
+        const ratings = await this.ratings.find({
+          where: { creator: review.creator, podcast: { id: podcastId } },
+        });
+        review.creator.ratings = ratings;
+        return review;
+      });
+      const reviews = await Promise.all(promises);
+      return {
+        ok: true,
+        reviews,
+        currentPage: page,
+        totalPages: reviewsCount / 1,
+      };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to get reviews' };
@@ -88,7 +102,7 @@ export class RatingsService {
     { podcastId, rating }: SaveRatingInput,
   ): Promise<SaveRatingOutput> {
     try {
-      const podcast = await this.podcasts.findOne({ id: podcastId });
+      let podcast = await this.podcasts.findOne({ id: podcastId });
       if (!podcast) {
         return { ok: false, err: 'Podcast not found' };
       }
@@ -97,15 +111,24 @@ export class RatingsService {
         podcastId: podcastId,
       });
       if (existRating) {
-        await this.ratings.save({ ...existRating, rating });
-        return { ok: true };
+        existRating.rating = rating;
+        await this.ratings.save(existRating);
       } else {
         const ratingObj = this.ratings.create({ rating });
         ratingObj.creator = authUser;
         ratingObj.podcast = podcast;
         await this.ratings.save(ratingObj);
-        return { ok: true };
       }
+      podcast = await this.podcasts.findOne(
+        { id: podcastId },
+        { relations: ['ratings'] },
+      );
+      podcast.rating =
+        podcast.ratings.reduce((acc, value) => {
+          return acc + value.rating;
+        }, 0) / podcast.ratings.length;
+      await this.podcasts.save(podcast);
+      return { ok: true };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to create rating' };

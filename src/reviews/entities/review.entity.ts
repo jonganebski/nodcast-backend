@@ -3,7 +3,7 @@ import { IsString, MaxLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
 import { Users } from 'src/users/entities/user.entity';
-import { Column, Entity, ManyToOne, RelationId } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, RelationId } from 'typeorm';
 import { REVIEW_TEXT_MAX_LENGTH } from '../reviews.constants';
 
 @InputType('ReviewInputType')

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Rating } from 'src/reviews/entities/rating.entity';
 import { UserRole, Users } from 'src/users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import {
   CreateCategoryInput,
   CreateCategoryOutput,
@@ -27,6 +28,10 @@ import { EditPodcastInput, EditPodcastOutput } from './dtos/edit-podcast.dto';
 import { GetCategoriesOutput } from './dtos/get-categories.dto';
 import { GetCategoryInput, GetCategoryOutput } from './dtos/get-category.dto';
 import { GetPodcastInput, GetPodcastOutput } from './dtos/get-podcast.dto';
+import {
+  SearchPodcastsInput,
+  SearchPodcastsOutput,
+} from './dtos/search-podcasts.dto';
 import { Category } from './entities/category.entity';
 import { Episode } from './entities/episode.entity';
 import { Podcast } from './entities/podcast.entity';
@@ -65,7 +70,7 @@ export class CategoriesService {
             .leftJoin('podcast.categories', 'category')
             .where('category.id = :id', { id: category.id })
             .orderBy({ 'podcast.subscribersCount': 'DESC' })
-            .take(10)
+            .take(12)
             .getMany();
           return category;
         });
@@ -109,6 +114,10 @@ export class PodcastsService {
     private readonly categories: Repository<Category>,
     @InjectRepository(Podcast)
     private readonly podcasts: Repository<Podcast>,
+    @InjectRepository(Episode)
+    private readonly episodes: Repository<Episode>,
+    @InjectRepository(Rating)
+    private readonly ratings: Repository<Rating>,
   ) {}
 
   async createPodcast(
@@ -178,25 +187,57 @@ export class PodcastsService {
     { podcastId, page }: GetPodcastInput,
   ): Promise<GetPodcastOutput> {
     try {
-      const podcast = await this.podcasts
-        .createQueryBuilder('podcast')
-        .where('podcast.id = :id', { id: podcastId })
-        .leftJoinAndSelect('podcast.episodes', 'episode')
-        .leftJoinAndSelect('podcast.creator', 'creator')
-        .orderBy({ 'episode.createdAt': 'DESC' })
-        .skip((page - 1) * 25)
-        .take(25)
-        .getOne();
+      const podcast = await this.podcasts.findOne(
+        { id: podcastId },
+        { relations: ['creator'] },
+      );
+      const [episodes, episodesCount] = await this.episodes.findAndCount({
+        where: { podcast },
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * 2,
+        take: 2,
+      });
+      const myRating = await this.ratings.findOne({
+        where: { creator: { id: authUser.id }, podcast: { id: podcastId } },
+      });
+      podcast.episodes = episodes;
       if (authUser.role === UserRole.Host) {
         if (podcast.creatorId !== authUser.id) {
           return { ok: false, err: 'Not authorized' };
         }
       } else {
-        return { ok: true, podcast };
+        return {
+          ok: true,
+          podcast,
+          currentPage: page,
+          totalPages: Math.ceil(episodesCount / 2),
+          myRating,
+        };
       }
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to get podcast' };
+    }
+  }
+
+  async searchPodcasts({
+    titleQuery,
+    page,
+  }: SearchPodcastsInput): Promise<SearchPodcastsOutput> {
+    try {
+      const podcasts = await this.podcasts.find({
+        where: { title: Like(`%${titleQuery}%`) },
+        take: 25,
+        skip: (page - 1) * 25,
+        relations: ['creator'],
+      });
+      if (!podcasts) {
+        return { ok: false, err: 'Could not find podcasts' };
+      }
+      return { ok: true, podcasts };
+    } catch (err) {
+      console.log(err);
+      return { ok: false, err: 'Failed to search' };
     }
   }
 }
@@ -213,7 +254,10 @@ export class EpisodesService {
     { podcastId, ...payload }: CreateEpisodeInput,
   ): Promise<CreateEpisodeOutput> {
     try {
-      const podcast = await this.podcasts.findOne({ id: podcastId });
+      const podcast = await this.podcasts.findOne(
+        { id: podcastId },
+        { relations: ['episodes'] },
+      );
       if (!podcast) {
         return { ok: false, err: 'Podcast not found' };
       }
@@ -223,6 +267,9 @@ export class EpisodesService {
       const episode = this.episodes.create({ ...payload });
       episode.podcast = podcast;
       const created = await this.episodes.save(episode);
+      podcast.updatedAt = new Date();
+      podcast.episodes = [...podcast.episodes, created];
+      await this.podcasts.save(podcast);
       return { ok: true, id: created.id };
     } catch (err) {
       console.log(err);

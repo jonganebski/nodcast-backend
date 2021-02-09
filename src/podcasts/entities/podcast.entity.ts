@@ -40,6 +40,11 @@ export class Podcast extends CoreEntity {
   @IsNumber()
   subscribersCount: number;
 
+  @Column({ nullable: true, type: 'float4' })
+  @Field(() => Number, { nullable: true })
+  @IsNumber()
+  rating: number;
+
   @Field(() => Users)
   @ManyToOne(() => Users, (user) => user.podcasts, {
     onDelete: 'CASCADE',
@@ -49,7 +54,7 @@ export class Podcast extends CoreEntity {
   @RelationId((podcast: Podcast) => podcast.creator)
   creatorId: number;
 
-  @ManyToMany(() => Users, (user) => user.subsriptions)
+  @ManyToMany(() => Users, (user) => user.subscriptions)
   @Field(() => [Users])
   subscribers: Users[];
 

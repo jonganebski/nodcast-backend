@@ -59,7 +59,7 @@ export class UsersResolver {
 
   @Role(['Listener'])
   @Mutation(() => ToggleSubscribeOutput)
-  toggleSubscribtion(
+  toggleSubscribe(
     @AuthUser() authUser: Users,
     @Args('input') toggleSubscriptionInput: ToggleSubscribeInput,
   ): Promise<ToggleSubscribeOutput> {

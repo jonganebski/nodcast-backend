@@ -10,4 +10,10 @@ export class PaginatorInput {
 }
 
 @ObjectType()
-export class PaginatorOutput extends CoreOutput {}
+export class PaginatorOutput extends CoreOutput {
+  @Field(() => Number, { nullable: true })
+  currentPage?: number;
+
+  @Field(() => Number, { nullable: true })
+  totalPages?: number;
+}

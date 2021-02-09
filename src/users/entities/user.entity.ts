@@ -6,7 +6,13 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import * as bcrypt from 'bcrypt';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
 import { Rating } from 'src/reviews/entities/rating.entity';
@@ -64,6 +70,13 @@ export class Users extends CoreEntity {
   @MinLength(6)
   password: string;
 
+  @Column({ nullable: true })
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  username: string;
+
   @Column({ type: 'enum', enum: UserRole })
   @Field(() => UserRole)
   role: UserRole;
@@ -75,7 +88,7 @@ export class Users extends CoreEntity {
   @ManyToMany(() => Podcast, (podcast) => podcast.subscribers)
   @Field(() => [Podcast])
   @JoinTable()
-  subsriptions: Podcast[];
+  subscriptions: Podcast[];
 
   @OneToMany(() => Review, (review) => review.creator)
   @Field(() => [Review])

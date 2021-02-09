@@ -33,7 +33,10 @@ export class UsersService {
 
   async findById(id: number) {
     try {
-      const user = await this.users.findOne({ id });
+      const user = await this.users.findOne(
+        { id },
+        { relations: ['subscriptions'] },
+      );
       return { ok: true, user };
     } catch {
       return { ok: false };

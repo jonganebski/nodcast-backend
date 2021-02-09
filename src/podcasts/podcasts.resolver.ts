@@ -27,6 +27,10 @@ import { EditPodcastInput, EditPodcastOutput } from './dtos/edit-podcast.dto';
 import { GetCategoriesOutput } from './dtos/get-categories.dto';
 import { GetCategoryInput, GetCategoryOutput } from './dtos/get-category.dto';
 import { GetPodcastInput, GetPodcastOutput } from './dtos/get-podcast.dto';
+import {
+  SearchPodcastsInput,
+  SearchPodcastsOutput,
+} from './dtos/search-podcasts.dto';
 import { Category } from './entities/category.entity';
 import { Episode } from './entities/episode.entity';
 import { Podcast } from './entities/podcast.entity';
@@ -98,6 +102,14 @@ export class PodcastsResolver {
     @Args('input') getPodcastInput: GetPodcastInput,
   ): Promise<GetPodcastOutput> {
     return this.podcastsService.getPodcast(authUser, getPodcastInput);
+  }
+
+  @Role(['Listener'])
+  @Query(() => SearchPodcastsOutput)
+  searchPodcasts(
+    @Args('input') searchPodcastInput: SearchPodcastsInput,
+  ): Promise<SearchPodcastsOutput> {
+    return this.podcastsService.searchPodcasts(searchPodcastInput);
   }
 }
 

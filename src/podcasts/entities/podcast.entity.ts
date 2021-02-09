@@ -1,6 +1,7 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
 import { IsNumber, IsString, MaxLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
+import { Rating } from 'src/reviews/entities/rating.entity';
 import { Review } from 'src/reviews/entities/review.entity';
 import { Users } from 'src/users/entities/user.entity';
 import {
@@ -63,4 +64,8 @@ export class Podcast extends CoreEntity {
   @OneToMany(() => Review, (review) => review.podcast)
   @Field(() => [Review])
   reviews: Review[];
+
+  @OneToMany(() => Rating, (rating) => rating.podcast)
+  @Field(() => [Rating])
+  ratings: Rating[];
 }

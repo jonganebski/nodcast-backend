@@ -14,6 +14,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { Category } from './podcasts/entities/category.entity';
 import { JwtMiddleware } from './jwt/jwt.middleware';
+import { Rating } from './reviews/entities/rating.entity';
 
 @Module({
   imports: [
@@ -49,7 +50,7 @@ import { JwtMiddleware } from './jwt/jwt.middleware';
             password: process.env.POSTGRES_PASSWORD,
             database: process.env.POSTGRES_DATABASE,
           }),
-      entities: [Users, Category, Podcast, Episode, Review],
+      entities: [Users, Category, Podcast, Episode, Review, Rating],
       logging: process.env.NODE_ENV === 'development',
       synchronize: true,
     }),

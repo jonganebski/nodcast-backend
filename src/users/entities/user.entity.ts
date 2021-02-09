@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
+import { Rating } from 'src/reviews/entities/rating.entity';
 import { Review } from 'src/reviews/entities/review.entity';
 import {
   BeforeInsert,
@@ -67,7 +68,7 @@ export class Users extends CoreEntity {
   @Field(() => UserRole)
   role: UserRole;
 
-  @OneToMany(() => Podcast, (p) => p.creator)
+  @OneToMany(() => Podcast, (podcast) => podcast.creator)
   @Field(() => [Podcast])
   podcasts: Podcast[];
 
@@ -76,7 +77,11 @@ export class Users extends CoreEntity {
   @JoinTable()
   subsriptions: Podcast[];
 
-  @OneToMany(() => Review, (r) => r.creator)
+  @OneToMany(() => Review, (review) => review.creator)
   @Field(() => [Review])
   reviews: Review[];
+
+  @OneToMany(() => Rating, (rating) => rating.creator)
+  @Field(() => [Rating])
+  ratings: Rating[];
 }

@@ -139,7 +139,7 @@ export class PodcastsService {
   ): Promise<EditPodcastOutput> {
     try {
       const podcast = await this.podcasts.findOne({ id: podcastId });
-      if (podcast.creator.id !== authUser.id) {
+      if (podcast.creatorId !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const categories = await this.categories.find({
@@ -159,7 +159,7 @@ export class PodcastsService {
   ): Promise<DeletePodcastOutput> {
     try {
       const podcast = await this.podcasts.findOne({ id: podcastId });
-      if (podcast.creator.id !== authUser.id) {
+      if (podcast.creatorId !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const delResult = await this.podcasts.delete({ id: podcastId });
@@ -188,7 +188,7 @@ export class PodcastsService {
         .take(25)
         .getOne();
       if (authUser.role === UserRole.Host) {
-        if (podcast.creator.id !== authUser.id) {
+        if (podcast.creatorId !== authUser.id) {
           return { ok: false, err: 'Not authorized' };
         }
       } else {
@@ -217,7 +217,7 @@ export class EpisodesService {
       if (!podcast) {
         return { ok: false, err: 'Podcast not found' };
       }
-      if (podcast.creator.id !== authUser.id) {
+      if (podcast.creatorId !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const episode = this.episodes.create({ ...payload });
@@ -237,9 +237,9 @@ export class EpisodesService {
     try {
       const episode = await this.episodes.findOne(
         { id: episodeId },
-        { relations: ['podcast.creator'] },
+        { relations: ['podcast.creatorId'] },
       );
-      if (episode.podcast.creator.id !== authUser.id) {
+      if (episode.podcast.creatorId !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       await this.episodes.save({ ...episode, ...payload });
@@ -257,12 +257,12 @@ export class EpisodesService {
     try {
       const episode = await this.episodes.findOne(
         { id: episodeId },
-        { relations: ['podcast.creator'] },
+        { relations: ['podcast.creatorId'] },
       );
       if (!episode) {
         return { ok: false, err: 'Episode not found' };
       }
-      if (episode.podcast.creator.id !== authUser.id) {
+      if (episode.podcast.creatorId !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const delResult = await this.episodes.delete({ id: episodeId });

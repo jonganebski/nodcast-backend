@@ -1,16 +1,10 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
-import {
-  IsDecimal,
-  IsNumber,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsString, MaxLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
 import { Users } from 'src/users/entities/user.entity';
 import { Column, Entity, ManyToOne, RelationId } from 'typeorm';
+import { REVIEW_TEXT_MAX_LENGTH } from '../reviews.constants';
 
 @InputType('ReviewInputType')
 @ObjectType({ isAbstract: true })
@@ -19,15 +13,8 @@ export class Review extends CoreEntity {
   @Column()
   @Field(() => String)
   @IsString()
-  @MaxLength(500)
+  @MaxLength(REVIEW_TEXT_MAX_LENGTH)
   text: string;
-
-  @Column()
-  @Field(() => Number)
-  @IsNumber()
-  @Min(0)
-  @Max(5)
-  rating: number;
 
   @ManyToOne(() => Users, (user) => user.reviews, { onDelete: 'CASCADE' })
   @Field(() => Users)

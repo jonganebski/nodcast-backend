@@ -7,10 +7,11 @@ import { Users } from 'src/users/entities/user.entity';
 import {
   Column,
   Entity,
+  JoinColumn,
+  JoinTable,
   ManyToMany,
-  ManyToOne,
   OneToMany,
-  RelationId,
+  OneToOne,
 } from 'typeorm';
 import {
   PODCAST_DESC_MAX_LENGTH,
@@ -45,14 +46,13 @@ export class Podcast extends CoreEntity {
   @IsNumber()
   rating: number;
 
-  @Field(() => Users)
-  @ManyToOne(() => Users, (user) => user.podcasts, {
+  @OneToOne(() => Users, (user) => user.podcast, {
     onDelete: 'CASCADE',
+    nullable: true,
   })
+  @JoinColumn()
+  @Field(() => Users, { nullable: true })
   creator: Users;
-
-  @RelationId((podcast: Podcast) => podcast.creator)
-  creatorId: number;
 
   @ManyToMany(() => Users, (user) => user.subscriptions)
   @Field(() => [Users])

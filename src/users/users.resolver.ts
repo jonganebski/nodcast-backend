@@ -7,11 +7,8 @@ import {
   CreateAccountOutput,
 } from './dtos/create-account.dto';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
-import { GetFeedInput, GetFeedOutput } from './dtos/get-feed.dto';
-import {
-  GetSubscriptionsInput,
-  GetSubscriptionsOutput,
-} from './dtos/get-subscriptions.dto';
+import { GetFeedOutput } from './dtos/get-feed.dto';
+import { GetSubscriptionsOutput } from './dtos/get-subscriptions.dto';
 import { LoginInput, LoginOutput } from './dtos/log-in.dto';
 import {
   ToggleSubscribeInput,
@@ -46,7 +43,7 @@ export class UsersResolver {
   @Mutation(() => EditProfileOutput)
   editProfile(
     @AuthUser() authUser: Users,
-    editProfileInput: EditProfileInput,
+    @Args('input') editProfileInput: EditProfileInput,
   ): Promise<EditProfileOutput> {
     return this.usersService.editProfile(authUser, editProfileInput);
   }
@@ -70,17 +67,13 @@ export class UsersResolver {
   @Query(() => GetSubscriptionsOutput)
   getSubscriptions(
     @AuthUser() authUser: Users,
-    @Args('input') getSubscriptionsInput: GetSubscriptionsInput,
   ): Promise<GetSubscriptionsOutput> {
-    return this.usersService.getSubscribtions(authUser, getSubscriptionsInput);
+    return this.usersService.getSubscribtions(authUser);
   }
 
   @Role(['Listener'])
   @Query(() => GetFeedOutput)
-  getFeed(
-    @AuthUser() authUser: Users,
-    @Args('input') getFeedInput: GetFeedInput,
-  ): Promise<GetFeedOutput> {
-    return this.usersService.getFeed(authUser, getFeedInput);
+  getFeed(@AuthUser() authUser: Users): Promise<GetFeedOutput> {
+    return this.usersService.getFeed(authUser);
   }
 }

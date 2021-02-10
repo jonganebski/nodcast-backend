@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { sign, verify } from 'jsonwebtoken';
 import { CONFIG_OPTIONS } from 'src/common/common.constants';
+import { UserRole } from 'src/users/entities/user.entity';
 import { JwtModuleOptions } from './jwt.interface';
 
 @Injectable()

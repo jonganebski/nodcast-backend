@@ -6,13 +6,7 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import * as bcrypt from 'bcrypt';
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
 import { Rating } from 'src/reviews/entities/rating.entity';
@@ -22,10 +16,13 @@ import {
   BeforeUpdate,
   Column,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
+import { PASSWORD_MIN_LENGTH, USERNAME_MAX_LENGTH } from '../users.constants';
 
 export enum UserRole {
   Host = 'Host',
@@ -59,31 +56,30 @@ export class Users extends CoreEntity {
     }
   }
 
-  @Column()
+  @Column({ unique: true })
   @Field(() => String)
   @IsEmail()
   email: string;
 
-  @Column()
+  @Column({ select: false })
   @Field(() => String)
   @IsString()
-  @MinLength(6)
+  @MinLength(PASSWORD_MIN_LENGTH)
   password: string;
 
-  @Column({ nullable: true })
-  @Field(() => String, { nullable: true })
-  @IsOptional()
+  @Column({ unique: true })
+  @Field(() => String)
   @IsString()
-  @MaxLength(50)
+  @MaxLength(USERNAME_MAX_LENGTH)
   username: string;
 
   @Column({ type: 'enum', enum: UserRole })
   @Field(() => UserRole)
   role: UserRole;
 
-  @OneToMany(() => Podcast, (podcast) => podcast.creator)
-  @Field(() => [Podcast])
-  podcasts: Podcast[];
+  @OneToOne(() => Podcast, (podcast) => podcast.creator, { nullable: true })
+  @Field(() => Podcast, { nullable: true })
+  podcast: Podcast;
 
   @ManyToMany(() => Podcast, (podcast) => podcast.subscribers)
   @Field(() => [Podcast])

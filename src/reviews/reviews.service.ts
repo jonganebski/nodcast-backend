@@ -12,6 +12,7 @@ import { EditReviewInput, EditReviewOutput } from './dtos/edit-review.dto';
 import { GetReviewsInput, GetReviewsOutput } from './dtos/get-reviews.dto';
 import { Rating } from './entities/rating.entity';
 import { Review } from './entities/review.entity';
+import { REVIEWS_PER_PAGE } from './reviews.constants';
 
 @Injectable()
 export class ReviewsService {
@@ -62,26 +63,18 @@ export class ReviewsService {
     podcastId,
   }: GetReviewsInput): Promise<GetReviewsOutput> {
     try {
-      const [paginatedReviews, reviewsCount] = await this.reviews.findAndCount({
+      const [reviews, reviewsCount] = await this.reviews.findAndCount({
         where: { podcast: { id: podcastId } },
         order: { createdAt: 'DESC' },
         relations: ['creator'],
-        skip: (page - 1) * 1,
-        take: 1,
+        skip: (page - 1) * REVIEWS_PER_PAGE,
+        take: REVIEWS_PER_PAGE,
       });
-      const promises = paginatedReviews.map(async (review) => {
-        const ratings = await this.ratings.find({
-          where: { creator: review.creator, podcast: { id: podcastId } },
-        });
-        review.creator.ratings = ratings;
-        return review;
-      });
-      const reviews = await Promise.all(promises);
       return {
         ok: true,
         reviews,
         currentPage: page,
-        totalPages: reviewsCount / 1,
+        totalPages: Math.ceil(reviewsCount / REVIEWS_PER_PAGE),
       };
     } catch (err) {
       console.log(err);

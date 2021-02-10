@@ -27,6 +27,7 @@ import { EditEpisodeInput, EditEpisodeOutput } from './dtos/edit-episode.dto';
 import { EditPodcastInput, EditPodcastOutput } from './dtos/edit-podcast.dto';
 import { GetCategoriesOutput } from './dtos/get-categories.dto';
 import { GetCategoryInput, GetCategoryOutput } from './dtos/get-category.dto';
+import { GetEpisodeInput, GetEpisodeOutput } from './dtos/get-episode.dto';
 import { GetPodcastInput, GetPodcastOutput } from './dtos/get-podcast.dto';
 import {
   SearchPodcastsInput,
@@ -148,7 +149,7 @@ export class PodcastsService {
   ): Promise<EditPodcastOutput> {
     try {
       const podcast = await this.podcasts.findOne({ id: podcastId });
-      if (podcast.creatorId !== authUser.id) {
+      if (podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const categories = await this.categories.find({
@@ -168,7 +169,7 @@ export class PodcastsService {
   ): Promise<DeletePodcastOutput> {
     try {
       const podcast = await this.podcasts.findOne({ id: podcastId });
-      if (podcast.creatorId !== authUser.id) {
+      if (podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const delResult = await this.podcasts.delete({ id: podcastId });
@@ -187,33 +188,55 @@ export class PodcastsService {
     { podcastId, page }: GetPodcastInput,
   ): Promise<GetPodcastOutput> {
     try {
-      const podcast = await this.podcasts.findOne(
-        { id: podcastId },
-        { relations: ['creator'] },
-      );
+      let podcast: Podcast;
+      if (authUser.role === UserRole.Listener && podcastId) {
+        podcast = await this.podcasts.findOne(
+          { id: podcastId },
+          { relations: ['creator'] },
+        );
+      } else if (authUser.role === UserRole.Host) {
+        podcast = await this.podcasts
+          .createQueryBuilder('podcast')
+          .leftJoinAndSelect('podcast.creator', 'creator')
+          .where('creator.id = :id', { id: authUser.id })
+          .getOne();
+        if (!podcast) {
+          const categories = await this.categories.find({
+            select: ['id', 'name'],
+            order: { name: 'ASC' },
+          });
+          return { ok: true, podcast: null, categories };
+        }
+      } else {
+        return { ok: false, err: 'Bad request' };
+      }
       const [episodes, episodesCount] = await this.episodes.findAndCount({
         where: { podcast },
         order: { createdAt: 'DESC' },
         skip: (page - 1) * 2,
         take: 2,
       });
-      const myRating = await this.ratings.findOne({
-        where: { creator: { id: authUser.id }, podcast: { id: podcastId } },
-      });
+      let myRating: Rating | null;
+      if (authUser.role === UserRole.Listener) {
+        myRating = await this.ratings.findOne({
+          where: { creator: { id: authUser.id }, podcast: { id: podcastId } },
+        });
+      } else {
+        myRating = null;
+      }
       podcast.episodes = episodes;
       if (authUser.role === UserRole.Host) {
-        if (podcast.creatorId !== authUser.id) {
+        if (podcast.creator.id !== authUser.id) {
           return { ok: false, err: 'Not authorized' };
         }
-      } else {
-        return {
-          ok: true,
-          podcast,
-          currentPage: page,
-          totalPages: Math.ceil(episodesCount / 2),
-          myRating,
-        };
       }
+      return {
+        ok: true,
+        podcast,
+        currentPage: page,
+        totalPages: Math.ceil(episodesCount / 2),
+        myRating,
+      };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to get podcast' };
@@ -261,7 +284,7 @@ export class EpisodesService {
       if (!podcast) {
         return { ok: false, err: 'Podcast not found' };
       }
-      if (podcast.creatorId !== authUser.id) {
+      if (podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const episode = this.episodes.create({ ...payload });
@@ -286,7 +309,7 @@ export class EpisodesService {
         { id: episodeId },
         { relations: ['podcast.creatorId'] },
       );
-      if (episode.podcast.creatorId !== authUser.id) {
+      if (episode.podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       await this.episodes.save({ ...episode, ...payload });
@@ -294,6 +317,22 @@ export class EpisodesService {
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to edit episode' };
+    }
+  }
+
+  async getEpisode({ episodeId }: GetEpisodeInput): Promise<GetEpisodeOutput> {
+    try {
+      const episode = await this.episodes.findOne(
+        { id: episodeId },
+        { relations: ['podcast'] },
+      );
+      if (!episode) {
+        return { ok: false, err: 'Episode not found' };
+      }
+      return { ok: true, episode };
+    } catch (err) {
+      console.log(err);
+      return { ok: false, err: 'Failed to get episode' };
     }
   }
 
@@ -309,7 +348,7 @@ export class EpisodesService {
       if (!episode) {
         return { ok: false, err: 'Episode not found' };
       }
-      if (episode.podcast.creatorId !== authUser.id) {
+      if (episode.podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const delResult = await this.episodes.delete({ id: episodeId });

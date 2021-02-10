@@ -4,17 +4,14 @@ import { CoreOutput } from 'src/common/dtos/core-output.dto';
 import { JwtService } from 'src/jwt/jwt.service';
 import { Episode } from 'src/podcasts/entities/episode.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
-import { MoreThan, Raw, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   CreateAccountInput,
   CreateAccountOutput,
 } from './dtos/create-account.dto';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
-import { GetFeedInput, GetFeedOutput } from './dtos/get-feed.dto';
-import {
-  GetSubscriptionsInput,
-  GetSubscriptionsOutput,
-} from './dtos/get-subscriptions.dto';
+import { GetFeedOutput } from './dtos/get-feed.dto';
+import { GetSubscriptionsOutput } from './dtos/get-subscriptions.dto';
 import { LoginInput, LoginOutput } from './dtos/log-in.dto';
 import {
   ToggleSubscribeInput,
@@ -31,7 +28,7 @@ export class UsersService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async findById(id: number) {
+  async findById({ id }: { id: number }) {
     try {
       const user = await this.users.findOne(
         { id },
@@ -45,6 +42,7 @@ export class UsersService {
 
   async createAccount({
     email,
+    username,
     password,
     role,
   }: CreateAccountInput): Promise<CreateAccountOutput> {
@@ -53,7 +51,7 @@ export class UsersService {
       if (existUser) {
         return { ok: false, err: 'This email has an account' };
       }
-      const user = this.users.create({ email, password, role });
+      const user = this.users.create({ email, username, password, role });
       await this.users.save(user);
       return { ok: true };
     } catch (err) {
@@ -85,14 +83,25 @@ export class UsersService {
 
   async editProfile(
     authUser: Users,
-    { email }: EditProfileInput,
+    { email, username, password }: EditProfileInput,
   ): Promise<EditProfileOutput> {
     try {
-      const existUser = await this.users.findOne({ email });
-      if (existUser) {
-        return { ok: false, err: 'This email is already taken' };
+      const existUser = await this.users.findOne({
+        where: [{ email }, { username }],
+      });
+      if (existUser && existUser.id !== authUser.id) {
+        if (existUser.email === email) {
+          return { ok: false, err: 'This email is already taken' };
+        } else if (existUser.username === username) {
+          return { ok: false, err: 'This username is already taken' };
+        }
       }
-      await this.users.save({ ...authUser, email });
+      authUser.email = email;
+      authUser.username = username;
+      if (password) {
+        authUser.password = password;
+      }
+      await this.users.save(authUser);
       return { ok: true };
     } catch (err) {
       console.log(err);
@@ -144,19 +153,9 @@ export class UsersService {
     }
   }
 
-  async getSubscribtions(
-    authUser: Users,
-    { page }: GetSubscriptionsInput,
-  ): Promise<GetSubscriptionsOutput> {
+  async getSubscribtions(authUser: Users): Promise<GetSubscriptionsOutput> {
     try {
-      const podcasts = await this.podcasts
-        .createQueryBuilder('podcast')
-        .where('podcast.creator.id = :id', { id: authUser.id })
-        .leftJoinAndSelect('podcast.episodes', 'episode')
-        .orderBy({ 'episode.updatedAt': 'DESC' })
-        .skip((page - 1) * 20)
-        .take(20)
-        .getMany();
+      const podcasts = authUser.subscriptions;
       return { ok: true, podcasts };
     } catch (err) {
       console.log(err);
@@ -164,24 +163,21 @@ export class UsersService {
     }
   }
 
-  async getFeed(
-    authUser: Users,
-    { page }: GetFeedInput,
-  ): Promise<GetFeedOutput> {
+  async getFeed(authUser: Users): Promise<GetFeedOutput> {
     try {
       const oneWeekAgo = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7);
-      const episodes = await this.episodes.find({
-        where: {
-          podcast: { creator: authUser },
-          updatedAt: MoreThan(
-            `${oneWeekAgo.getFullYear()}-${
-              oneWeekAgo.getMonth() + 1
-            }-${oneWeekAgo.getDate()}`,
-          ),
-        },
-        skip: (page - 1) * 20,
-        take: 20,
-      });
+      const episodes = await this.episodes
+        .createQueryBuilder('episode')
+        .where(`episode.createdAt >= :oneWeekAgo`, {
+          oneWeekAgo: `${oneWeekAgo.getFullYear()}-${
+            oneWeekAgo.getMonth() + 1
+          }-${oneWeekAgo.getDate()}`,
+        })
+        .leftJoinAndSelect('episode.podcast', 'podcast')
+        .leftJoinAndSelect('podcast.subscribers', 'subscriber')
+        .andWhere('subscriber.id = :id', { id: authUser.id })
+        .orderBy('episode.createdAt', 'DESC')
+        .getMany();
       return { ok: true, episodes };
     } catch (err) {
       console.log(err);

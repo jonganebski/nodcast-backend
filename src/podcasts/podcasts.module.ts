@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Rating } from 'src/reviews/entities/rating.entity';
+import { Users } from 'src/users/entities/user.entity';
 import { Category } from './entities/category.entity';
 import { Episode } from './entities/episode.entity';
 import { Podcast } from './entities/podcast.entity';

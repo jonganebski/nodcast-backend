@@ -1,12 +1,9 @@
-import { Field, InputType, ObjectType } from '@nestjs/graphql';
-import { PaginatorInput, PaginatorOutput } from 'src/common/dtos/paginator.dto';
+import { Field, ObjectType } from '@nestjs/graphql';
+import { CoreOutput } from 'src/common/dtos/core-output.dto';
 import { Episode } from 'src/podcasts/entities/episode.entity';
 
-@InputType()
-export class GetFeedInput extends PaginatorInput {}
-
 @ObjectType()
-export class GetFeedOutput extends PaginatorOutput {
+export class GetFeedOutput extends CoreOutput {
   @Field(() => [Episode], { nullable: true })
   episodes?: Episode[];
 }

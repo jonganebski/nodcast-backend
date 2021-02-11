@@ -27,6 +27,7 @@ import { EditPodcastInput, EditPodcastOutput } from './dtos/edit-podcast.dto';
 import { GetCategoriesOutput } from './dtos/get-categories.dto';
 import { GetCategoryInput, GetCategoryOutput } from './dtos/get-category.dto';
 import { GetEpisodeInput, GetEpisodeOutput } from './dtos/get-episode.dto';
+import { GetEpisodesOutput } from './dtos/get-episodes.dto';
 import { GetPodcastInput, GetPodcastOutput } from './dtos/get-podcast.dto';
 import {
   SearchPodcastsInput,
@@ -134,6 +135,12 @@ export class EpisodesResolver {
     @Args('input') editEpisodeInput: EditEpisodeInput,
   ): Promise<EditEpisodeOutput> {
     return this.episodesService.editEpisode(authUser, editEpisodeInput);
+  }
+
+  @Role(['Host'])
+  @Query(() => GetEpisodesOutput)
+  getEpisodes(@AuthUser() authUser: Users) {
+    return this.episodesService.getEpisodes(authUser);
   }
 
   @Role(['Any'])

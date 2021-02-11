@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { AwsS3Service } from 'src/aws-s3/aws-s3.service';
 import { Rating } from 'src/reviews/entities/rating.entity';
 import { UserRole, Users } from 'src/users/entities/user.entity';
 import { Like, Repository } from 'typeorm';
@@ -28,6 +29,7 @@ import { EditPodcastInput, EditPodcastOutput } from './dtos/edit-podcast.dto';
 import { GetCategoriesOutput } from './dtos/get-categories.dto';
 import { GetCategoryInput, GetCategoryOutput } from './dtos/get-category.dto';
 import { GetEpisodeInput, GetEpisodeOutput } from './dtos/get-episode.dto';
+import { GetEpisodesOutput } from './dtos/get-episodes.dto';
 import { GetPodcastInput, GetPodcastOutput } from './dtos/get-podcast.dto';
 import {
   SearchPodcastsInput,
@@ -188,55 +190,55 @@ export class PodcastsService {
     { podcastId, page }: GetPodcastInput,
   ): Promise<GetPodcastOutput> {
     try {
-      let podcast: Podcast;
       if (authUser.role === UserRole.Listener && podcastId) {
-        podcast = await this.podcasts.findOne(
+        const podcast = await this.podcasts.findOne(
           { id: podcastId },
           { relations: ['creator'] },
         );
+        const [episodes, episodesCount] = await this.episodes.findAndCount({
+          where: { podcast },
+          order: { createdAt: 'DESC' },
+          skip: (page - 1) * 2,
+          take: 2,
+        });
+        const myRating = await this.ratings.findOne({
+          where: { creator: { id: authUser.id }, podcast: { id: podcastId } },
+        });
+        podcast.episodes = episodes;
+        podcast.subscribers = [];
+        return {
+          ok: true,
+          podcast,
+          currentPage: page,
+          totalPages: Math.ceil(episodesCount / 2),
+          myRating,
+        };
       } else if (authUser.role === UserRole.Host) {
-        podcast = await this.podcasts
+        const podcast = await this.podcasts
           .createQueryBuilder('podcast')
           .leftJoinAndSelect('podcast.creator', 'creator')
           .where('creator.id = :id', { id: authUser.id })
+          .leftJoinAndSelect('podcast.subscribers', 'subscriber')
           .getOne();
+        const categories = await this.categories.find({
+          select: ['id', 'name'],
+          order: { name: 'ASC' },
+        });
         if (!podcast) {
-          const categories = await this.categories.find({
-            select: ['id', 'name'],
-            order: { name: 'ASC' },
-          });
           return { ok: true, podcast: null, categories };
         }
-      } else {
-        return { ok: false, err: 'Bad request' };
-      }
-      const [episodes, episodesCount] = await this.episodes.findAndCount({
-        where: { podcast },
-        order: { createdAt: 'DESC' },
-        skip: (page - 1) * 2,
-        take: 2,
-      });
-      let myRating: Rating | null;
-      if (authUser.role === UserRole.Listener) {
-        myRating = await this.ratings.findOne({
-          where: { creator: { id: authUser.id }, podcast: { id: podcastId } },
-        });
-      } else {
-        myRating = null;
-      }
-      podcast.episodes = episodes;
-      if (authUser.role === UserRole.Host) {
         if (podcast.creator.id !== authUser.id) {
           return { ok: false, err: 'Not authorized' };
         }
+        podcast.episodes = [];
+        return {
+          ok: true,
+          podcast,
+          categories,
+        };
+      } else {
+        return { ok: false, err: 'Bad request' };
       }
-      return {
-        ok: true,
-        podcast,
-        currentPage: page,
-        totalPages: Math.ceil(episodesCount / 2),
-        myRating,
-      };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to get podcast' };
@@ -270,30 +272,31 @@ export class EpisodesService {
   constructor(
     @InjectRepository(Episode) private readonly episodes: Repository<Episode>,
     @InjectRepository(Podcast) private readonly podcasts: Repository<Podcast>,
+    private readonly awsS3Service: AwsS3Service,
   ) {}
 
   async createEpisode(
     authUser: Users,
-    { podcastId, ...payload }: CreateEpisodeInput,
+    createEpisodeInput: CreateEpisodeInput,
   ): Promise<CreateEpisodeOutput> {
     try {
-      const podcast = await this.podcasts.findOne(
-        { id: podcastId },
-        { relations: ['episodes'] },
-      );
+      const podcast = await this.podcasts
+        .createQueryBuilder('podcast')
+        .leftJoin('podcast.creator', 'creator')
+        .where('creator.id = :id', { id: authUser.id })
+        .leftJoinAndSelect('podcast.episodes', 'episode')
+        .getOne();
       if (!podcast) {
         return { ok: false, err: 'Podcast not found' };
       }
-      if (podcast.creator.id !== authUser.id) {
-        return { ok: false, err: 'Not authorized' };
-      }
-      const episode = this.episodes.create({ ...payload });
+      const episode = this.episodes.create({ ...createEpisodeInput });
+      episode.creator = authUser;
       episode.podcast = podcast;
       const created = await this.episodes.save(episode);
       podcast.updatedAt = new Date();
       podcast.episodes = [...podcast.episodes, created];
       await this.podcasts.save(podcast);
-      return { ok: true, id: created.id };
+      return { ok: true, episode: created };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to create episode' };
@@ -305,18 +308,37 @@ export class EpisodesService {
     { episodeId, ...payload }: EditEpisodeInput,
   ): Promise<EditEpisodeOutput> {
     try {
-      const episode = await this.episodes.findOne(
-        { id: episodeId },
-        { relations: ['podcast.creatorId'] },
-      );
-      if (episode.podcast.creator.id !== authUser.id) {
+      const episode = await this.episodes.findOne({ where: { id: episodeId } });
+      if (!episode) {
+        return { ok: false, err: 'Episode not found' };
+      }
+      if (episode.creatorId !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
-      await this.episodes.save({ ...episode, ...payload });
-      return { ok: true };
+      if (episode.audioUrl !== payload.audioUrl) {
+        await this.awsS3Service.delete({ urls: [episode.audioUrl] });
+      }
+      const edited = await this.episodes.save({ ...episode, ...payload });
+      return { ok: true, episode: edited };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to edit episode' };
+    }
+  }
+
+  async getEpisodes(authUser: Users): Promise<GetEpisodesOutput> {
+    try {
+      const episodes = await this.episodes
+        .createQueryBuilder('episode')
+        .leftJoin('episode.podcast', 'podcast')
+        .leftJoin('podcast.creator', 'creator')
+        .where('creator.id = :id', { id: authUser.id })
+        .orderBy({ 'episode.createdAt': 'DESC' })
+        .getMany();
+      return { ok: true, episodes };
+    } catch (err) {
+      console.log(err);
+      return { ok: false, err: 'Failed to get episodes' };
     }
   }
 
@@ -343,19 +365,20 @@ export class EpisodesService {
     try {
       const episode = await this.episodes.findOne(
         { id: episodeId },
-        { relations: ['podcast.creatorId'] },
+        { relations: ['creator'] },
       );
       if (!episode) {
         return { ok: false, err: 'Episode not found' };
       }
-      if (episode.podcast.creator.id !== authUser.id) {
+      if (episode.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const delResult = await this.episodes.delete({ id: episodeId });
       if (delResult.affected === 0) {
         return { ok: false, err: 'Failed to delete episode' };
       }
-      return { ok: true };
+      await this.awsS3Service.delete({ urls: [episode.audioUrl] });
+      return { ok: true, id: episodeId };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to delete episode' };

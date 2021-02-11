@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { Category } from './podcasts/entities/category.entity';
 import { JwtMiddleware } from './jwt/jwt.middleware';
 import { Rating } from './reviews/entities/rating.entity';
+import { AwsS3Module } from './aws-s3/aws-s3.module';
 
 @Module({
   imports: [
@@ -34,9 +35,9 @@ import { Rating } from './reviews/entities/rating.entity';
         POSTGRES_DATABASE: Joi.string().required(),
         JWT_PRIVATE_KEY: Joi.string().required(),
         PORT: Joi.number(),
-        // AWS_S3_ACCESS_KEY_ID: Joi.string().required(),
-        // AWS_S3_SECRET_ACCESS_KEY: Joi.string().required(),
-        // AWS_S3_BUCKET_NAME: Joi.string().required(),
+        AWS_S3_ACCESS_KEY: Joi.string().required(),
+        AWS_S3_SECRET_KEY: Joi.string().required(),
+        AWS_S3_BUCKET_NAME: Joi.string().required(),
       }),
     }),
     TypeOrmModule.forRoot({
@@ -65,6 +66,7 @@ import { Rating } from './reviews/entities/rating.entity';
     PodcastsModule,
     ReviewsModule,
     AuthModule,
+    AwsS3Module,
   ],
   controllers: [],
   providers: [],

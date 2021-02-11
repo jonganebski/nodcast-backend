@@ -10,4 +10,7 @@ export class DeleteEpisodeInput {
 }
 
 @ObjectType()
-export class DeleteEpisodeOutput extends CoreOutput {}
+export class DeleteEpisodeOutput extends CoreOutput {
+  @Field(() => Number, { nullable: true })
+  id?: number;
+}

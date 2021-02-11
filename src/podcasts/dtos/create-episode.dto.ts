@@ -1,6 +1,7 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
-import { IsNumber, IsString, MaxLength } from 'class-validator';
+import { IsNumber, IsString, IsUrl, MaxLength } from 'class-validator';
 import { CoreOutput } from 'src/common/dtos/core-output.dto';
+import { Episode } from '../entities/episode.entity';
 import {
   EPISODE_DESC_MAX_LENGTH,
   EPISODE_TITLE_MAX_LENGTH,
@@ -8,14 +9,18 @@ import {
 
 @InputType()
 export class CreateEpisodeInput {
-  @Field(() => Number)
-  @IsNumber()
-  podcastId: number;
-
   @Field(() => String)
   @IsString()
   @MaxLength(EPISODE_TITLE_MAX_LENGTH)
   title: string;
+
+  @Field(() => String)
+  @IsUrl()
+  audioUrl: string;
+
+  @Field(() => Number)
+  @IsNumber()
+  dutationSeconds: number;
 
   @Field(() => String, { nullable: true })
   @IsString()
@@ -25,6 +30,6 @@ export class CreateEpisodeInput {
 
 @ObjectType()
 export class CreateEpisodeOutput extends CoreOutput {
-  @Field(() => Number, { nullable: true })
-  id?: number;
+  @Field(() => Episode, { nullable: true })
+  episode?: Episode;
 }

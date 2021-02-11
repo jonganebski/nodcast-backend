@@ -1,5 +1,5 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
-import { IsNumber, IsString, MaxLength } from 'class-validator';
+import { IsNumber, IsString, IsUrl, MaxLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Rating } from 'src/reviews/entities/rating.entity';
 import { Review } from 'src/reviews/entities/review.entity';
@@ -35,6 +35,11 @@ export class Podcast extends CoreEntity {
   @IsString()
   @MaxLength(PODCAST_DESC_MAX_LENGTH)
   description: string;
+
+  @Column({ nullable: true })
+  @Field(() => String, { nullable: true })
+  @IsUrl()
+  coverUrl: string;
 
   @Column({ default: 0 })
   @Field(() => Number, { defaultValue: 0 })

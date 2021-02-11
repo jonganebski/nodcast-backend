@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AwsS3Service } from 'src/aws-s3/aws-s3.service';
 import { Rating } from 'src/reviews/entities/rating.entity';
 import { Users } from 'src/users/entities/user.entity';
 import { Category } from './entities/category.entity';
@@ -25,6 +26,7 @@ import {
     PodcastsService,
     EpisodesResolver,
     EpisodesService,
+    AwsS3Service,
   ],
 })
 export class PodcastsModule {}

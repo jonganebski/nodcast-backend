@@ -1,5 +1,5 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
-import { IsString, MaxLength } from 'class-validator';
+import { IsNumber, IsString, IsUrl, MaxLength } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Users } from 'src/users/entities/user.entity';
 import {
@@ -31,6 +31,23 @@ export class Episode extends CoreEntity {
   @IsString()
   @MaxLength(EPISODE_DESC_MAX_LENGTH)
   description: string;
+
+  @Column()
+  @Field(() => String)
+  @IsUrl()
+  audioUrl: string;
+
+  @Column()
+  @Field(() => Number)
+  @IsNumber()
+  dutationSeconds: number;
+
+  @ManyToOne(() => Users, (user) => user.episodes, { onDelete: 'CASCADE' })
+  @Field(() => Users)
+  creator: Users;
+
+  @RelationId((episode: Episode) => episode.creator)
+  creatorId: number;
 
   @ManyToOne(() => Podcast, (podcast) => podcast.episodes, {
     onDelete: 'CASCADE',

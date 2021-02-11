@@ -6,8 +6,15 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import * as bcrypt from 'bcrypt';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  IsUrl,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
+import { Episode } from 'src/podcasts/entities/episode.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
 import { Rating } from 'src/reviews/entities/rating.entity';
 import { Review } from 'src/reviews/entities/review.entity';
@@ -77,6 +84,11 @@ export class Users extends CoreEntity {
   @Field(() => UserRole)
   role: UserRole;
 
+  @Column({ nullable: true })
+  @Field(() => String, { nullable: true })
+  @IsUrl()
+  avatarUrl: string;
+
   @OneToOne(() => Podcast, (podcast) => podcast.creator, { nullable: true })
   @Field(() => Podcast, { nullable: true })
   podcast: Podcast;
@@ -85,6 +97,10 @@ export class Users extends CoreEntity {
   @Field(() => [Podcast])
   @JoinTable()
   subscriptions: Podcast[];
+
+  @OneToMany(() => Episode, (episode) => episode.creator)
+  @Field(() => [Episode])
+  episodes: Episode[];
 
   @OneToMany(() => Review, (review) => review.creator)
   @Field(() => [Review])

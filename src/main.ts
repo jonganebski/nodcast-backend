@@ -8,7 +8,7 @@ async function bootstrap() {
   app.enableCors({
     origin:
       process.env.NODE_ENV === 'production'
-        ? 'https://nodcast.netlify.app/'
+        ? 'https://nodcast.netlify.app'
         : 'http://localhost:3000',
   });
   await app.listen(process.env.PORT ?? 4000);

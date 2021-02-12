@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { AwsS3Service } from 'src/aws-s3/aws-s3.service';
 import { CoreOutput } from 'src/common/dtos/core-output.dto';
 import { JwtService } from 'src/jwt/jwt.service';
 import { Episode } from 'src/podcasts/entities/episode.entity';
@@ -26,6 +27,7 @@ export class UsersService {
     @InjectRepository(Podcast) private readonly podcasts: Repository<Podcast>,
     @InjectRepository(Episode) private readonly episodes: Repository<Episode>,
     private readonly jwtService: JwtService,
+    private readonly awsS3Service: AwsS3Service,
   ) {}
 
   async findById({ id }: { id: number }) {
@@ -83,7 +85,7 @@ export class UsersService {
 
   async editProfile(
     authUser: Users,
-    { email, username, password }: EditProfileInput,
+    { email, username, avatarUrl, password }: EditProfileInput,
   ): Promise<EditProfileOutput> {
     try {
       const existUser = await this.users.findOne({
@@ -95,6 +97,9 @@ export class UsersService {
         } else if (existUser.username === username) {
           return { ok: false, err: 'This username is already taken' };
         }
+      }
+      if (avatarUrl !== authUser.avatarUrl) {
+        this.awsS3Service.delete({ urls: [authUser.avatarUrl] });
       }
       authUser.email = email;
       authUser.username = username;

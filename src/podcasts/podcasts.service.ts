@@ -121,11 +121,12 @@ export class PodcastsService {
     private readonly episodes: Repository<Episode>,
     @InjectRepository(Rating)
     private readonly ratings: Repository<Rating>,
+    private readonly awsS3Service: AwsS3Service,
   ) {}
 
   async createPodcast(
     authUser: Users,
-    { title, description, categoryIds }: CreatePodcastInput,
+    { title, description, categoryIds, coverUrl }: CreatePodcastInput,
   ): Promise<CreatePodcastOutput> {
     try {
       const categories = await this.categories.find({
@@ -134,11 +135,12 @@ export class PodcastsService {
       const podcast = await this.podcasts.create({
         title,
         description,
+        coverUrl,
       });
       podcast.creator = authUser;
       podcast.categories = categories;
       const created = await this.podcasts.save(podcast);
-      return { ok: true, id: created.id };
+      return { ok: true, podcast: created, categories };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to create podcast' };
@@ -150,15 +152,25 @@ export class PodcastsService {
     { podcastId, categoryIds, ...payload }: EditPodcastInput,
   ): Promise<EditPodcastOutput> {
     try {
-      const podcast = await this.podcasts.findOne({ id: podcastId });
+      const podcast = await this.podcasts.findOne(
+        { id: podcastId },
+        { relations: ['creator'] },
+      );
       if (podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
       const categories = await this.categories.find({
-        where: [...categoryIds],
+        where: [...categoryIds.map((id) => ({ id }))],
       });
-      await this.podcasts.save({ ...podcast, ...payload, categories });
-      return { ok: true };
+      if (payload.coverUrl !== podcast.coverUrl) {
+        await this.awsS3Service.delete({ urls: [podcast.coverUrl] });
+      }
+      const editedPodcast = await this.podcasts.save({
+        ...podcast,
+        ...payload,
+        categories,
+      });
+      return { ok: true, editedPodcast, categories };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to edit podcast' };
@@ -219,6 +231,7 @@ export class PodcastsService {
           .leftJoinAndSelect('podcast.creator', 'creator')
           .where('creator.id = :id', { id: authUser.id })
           .leftJoinAndSelect('podcast.subscribers', 'subscriber')
+          .leftJoinAndSelect('podcast.categories', 'category')
           .getOne();
         const categories = await this.categories.find({
           select: ['id', 'name'],
@@ -335,7 +348,16 @@ export class EpisodesService {
         .where('creator.id = :id', { id: authUser.id })
         .orderBy({ 'episode.createdAt': 'DESC' })
         .getMany();
-      return { ok: true, episodes };
+      if (episodes.length === 0) {
+        return { ok: true, episodes };
+      }
+      const podcast = await this.podcasts.findOne({
+        where: { id: episodes[0].podcastId },
+      });
+      if (!podcast) {
+        return { ok: false, err: 'Podcast not found' };
+      }
+      return { ok: true, episodes, podcast };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to get episodes' };

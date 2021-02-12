@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -19,6 +20,11 @@ export class EditProfileInput {
   @IsString()
   @MaxLength(USERNAME_MAX_LENGTH)
   username: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsUrl()
+  avatarUrl?: string;
 
   @Field(() => String, { nullable: true })
   @IsOptional()

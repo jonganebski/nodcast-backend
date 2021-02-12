@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { AwsS3Service } from 'src/aws-s3/aws-s3.service';
 import { Rating } from 'src/reviews/entities/rating.entity';
 import { UserRole, Users } from 'src/users/entities/user.entity';
-import { Like, Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import {
   CreateCategoryInput,
   CreateCategoryOutput,
@@ -281,7 +281,7 @@ export class PodcastsService {
   }: SearchPodcastsInput): Promise<SearchPodcastsOutput> {
     try {
       const podcasts = await this.podcasts.find({
-        where: { title: Like(`%${titleQuery}%`) },
+        where: { title: Raw((title) => `${title} ILIKE '%${titleQuery}%'`) },
         take: 25,
         skip: (page - 1) * 25,
         relations: ['creator'],

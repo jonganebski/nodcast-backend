@@ -82,7 +82,7 @@ export class SeederService {
       if (categories) {
         const seedPodcastInput: ISeedPodcastInput = {
           creatorId: fakeHostIds[i],
-          title: faker.name.title(),
+          title: faker.random.words(Math.floor(Math.random() * 2 + 1)),
           description: faker.lorem.sentences(Math.floor(Math.random() * 5)),
           createdAt: faker.date.past(1),
           updatedAt: faker.date.recent(Math.floor(Math.random() * 7) + 1),

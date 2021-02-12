@@ -48,6 +48,16 @@ export class CategoriesService {
     private readonly podcasts: Repository<Podcast>,
   ) {}
 
+  async getAllCategories() {
+    try {
+      const categories = await this.categories.find();
+      return categories;
+    } catch (err) {
+      console.log(err);
+      return null;
+    }
+  }
+
   async createCategory({
     name,
   }: CreateCategoryInput): Promise<CreateCategoryOutput> {
@@ -182,15 +192,21 @@ export class PodcastsService {
     { podcastId }: DeletePodcastInput,
   ): Promise<DeletePodcastOutput> {
     try {
-      const podcast = await this.podcasts.findOne({ id: podcastId });
+      const podcast = await this.podcasts.findOne(
+        { id: podcastId },
+        { relations: ['creator', 'episodes'] },
+      );
       if (podcast.creator.id !== authUser.id) {
         return { ok: false, err: 'Not authorized' };
       }
+      const fileUrls = [podcast.coverUrl];
+      podcast.episodes.forEach((episode) => fileUrls.push(episode.audioUrl));
+      await this.awsS3Service.delete({ urls: fileUrls });
       const delResult = await this.podcasts.delete({ id: podcastId });
       if (delResult.affected === 0) {
         return { ok: false, err: 'Failed to delete podcast' };
       }
-      return { ok: true };
+      return { ok: true, id: podcastId };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to delete podcast' };
@@ -208,21 +224,22 @@ export class PodcastsService {
           { relations: ['creator'] },
         );
         const [episodes, episodesCount] = await this.episodes.findAndCount({
-          where: { podcast },
+          where: { podcast: { id: podcastId } },
           order: { createdAt: 'DESC' },
-          skip: (page - 1) * 2,
-          take: 2,
+          skip: (page - 1) * 20,
+          take: 20,
         });
         const myRating = await this.ratings.findOne({
           where: { creator: { id: authUser.id }, podcast: { id: podcastId } },
         });
         podcast.episodes = episodes;
         podcast.subscribers = [];
+        podcast.categories = [];
         return {
           ok: true,
           podcast,
           currentPage: page,
-          totalPages: Math.ceil(episodesCount / 2),
+          totalPages: Math.ceil(episodesCount / 20),
           myRating,
         };
       } else if (authUser.role === UserRole.Host) {

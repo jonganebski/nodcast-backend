@@ -3,15 +3,7 @@ import { IsNumber, Max, Min } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { Podcast } from 'src/podcasts/entities/podcast.entity';
 import { Users } from 'src/users/entities/user.entity';
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  Entity,
-  ManyToOne,
-  PrimaryColumn,
-  RelationId,
-} from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryColumn, RelationId } from 'typeorm';
 import { RATING_MAX, RATING_MIN } from '../reviews.constants';
 
 @InputType('RatingInputType')

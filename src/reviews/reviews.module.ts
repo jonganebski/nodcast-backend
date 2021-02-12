@@ -9,5 +9,6 @@ import { RatingsService, ReviewsService } from './reviews.service';
 @Module({
   imports: [TypeOrmModule.forFeature([Review, Rating, Podcast])],
   providers: [ReviewsResolver, ReviewsService, RatingsResolver, RatingsService],
+  exports: [ReviewsService, RatingsService],
 })
 export class ReviewsModule {}

@@ -1,21 +1,20 @@
-import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as Joi from 'joi';
-import { JwtModule } from './jwt/jwt.module';
-import { Episode } from './podcasts/entities/episode.entity';
-import { Podcast } from './podcasts/entities/podcast.entity';
-import { PodcastsModule } from './podcasts/podcasts.module';
-import { Review } from './reviews/entities/review.entity';
-import { ReviewsModule } from './reviews/reviews.module';
-import { Users } from './users/entities/user.entity';
-import { UsersModule } from './users/users.module';
-import { AuthModule } from './auth/auth.module';
-import { Category } from './podcasts/entities/category.entity';
-import { JwtMiddleware } from './jwt/jwt.middleware';
-import { Rating } from './reviews/entities/rating.entity';
-import { AwsS3Module } from './aws-s3/aws-s3.module';
+import { AuthModule } from 'src/auth/auth.module';
+import { AwsS3Module } from 'src/aws-s3/aws-s3.module';
+import { JwtModule } from 'src/jwt/jwt.module';
+import { Category } from 'src/podcasts/entities/category.entity';
+import { Episode } from 'src/podcasts/entities/episode.entity';
+import { Podcast } from 'src/podcasts/entities/podcast.entity';
+import { PodcastsModule } from 'src/podcasts/podcasts.module';
+import { Rating } from 'src/reviews/entities/rating.entity';
+import { Review } from 'src/reviews/entities/review.entity';
+import { ReviewsModule } from 'src/reviews/reviews.module';
+import { Users } from 'src/users/entities/user.entity';
+import { UsersModule } from 'src/users/users.module';
+import { SeederService } from './seeder.service';
 
 @Module({
   imports: [
@@ -34,9 +33,7 @@ import { AwsS3Module } from './aws-s3/aws-s3.module';
         POSTGRES_PASSWORD: Joi.string(),
         POSTGRES_DATABASE: Joi.string(),
         JWT_PRIVATE_KEY: Joi.string().required(),
-        PORT: Joi.number(),
-        AWS_S3_ACCESS_KEY: Joi.string().required(),
-        AWS_S3_SECRET_KEY: Joi.string().required(),
+        SEED_USER_PASSWORD: Joi.string().required(),
         AWS_S3_BUCKET_NAME: Joi.string().required(),
       }),
     }),
@@ -55,12 +52,6 @@ import { AwsS3Module } from './aws-s3/aws-s3.module';
       logging: process.env.NODE_ENV === 'development',
       synchronize: true,
     }),
-    GraphQLModule.forRoot({
-      autoSchemaFile: true,
-      playground: true,
-      introspection: true,
-      context: ({ req }) => ({ user: req['user'] }),
-    }),
     JwtModule.forRoot({ privateKey: process.env.JWT_PRIVATE_KEY }),
     UsersModule,
     PodcastsModule,
@@ -68,14 +59,6 @@ import { AwsS3Module } from './aws-s3/aws-s3.module';
     AuthModule,
     AwsS3Module,
   ],
-  controllers: [],
-  providers: [],
+  providers: [SeederService],
 })
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(JwtMiddleware).forRoutes({
-      path: '/graphql',
-      method: RequestMethod.ALL,
-    });
-  }
-}
+export class SeederModule {}

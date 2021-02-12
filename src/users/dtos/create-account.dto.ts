@@ -22,4 +22,7 @@ export class CreateAccountInput extends PickType(Users, ['role']) {
 }
 
 @ObjectType()
-export class CreateAccountOutput extends CoreOutput {}
+export class CreateAccountOutput extends CoreOutput {
+  @Field(() => Number, { nullable: true })
+  id?: number;
+}

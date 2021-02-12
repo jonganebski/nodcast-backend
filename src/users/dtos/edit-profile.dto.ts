@@ -34,4 +34,7 @@ export class EditProfileInput {
 }
 
 @ObjectType()
-export class EditProfileOutput extends CoreOutput {}
+export class EditProfileOutput extends CoreOutput {
+  @Field(() => String, { nullable: true })
+  avatarUrl?: string;
+}

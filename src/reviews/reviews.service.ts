@@ -41,6 +41,7 @@ export class ReviewsService {
       return { ok: false, err: 'Failed to create review' };
     }
   }
+
   async editReview(
     authUser: Users,
     { reviewId, text }: EditReviewInput,

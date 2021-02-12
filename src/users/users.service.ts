@@ -54,8 +54,8 @@ export class UsersService {
         return { ok: false, err: 'This email has an account' };
       }
       const user = this.users.create({ email, username, password, role });
-      await this.users.save(user);
-      return { ok: true };
+      const { id } = await this.users.save(user);
+      return { ok: true, id };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to create account' };
@@ -99,15 +99,18 @@ export class UsersService {
         }
       }
       if (avatarUrl !== authUser.avatarUrl) {
-        this.awsS3Service.delete({ urls: [authUser.avatarUrl] });
+        if (authUser.avatarUrl) {
+          this.awsS3Service.delete({ urls: [authUser.avatarUrl] });
+        }
       }
       authUser.email = email;
       authUser.username = username;
+      authUser.avatarUrl = avatarUrl;
       if (password) {
         authUser.password = password;
       }
       await this.users.save(authUser);
-      return { ok: true };
+      return { ok: true, avatarUrl };
     } catch (err) {
       console.log(err);
       return { ok: false, err: 'Failed to edit profile' };

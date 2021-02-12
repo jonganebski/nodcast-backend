@@ -16,9 +16,12 @@ import {
   EpisodesService,
   PodcastsService,
 } from './podcasts.service';
+import { SeedEpisodesService, SeedPodcastsService } from './seed.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Category, Podcast, Episode, Rating])],
+  imports: [
+    TypeOrmModule.forFeature([Category, Podcast, Episode, Rating, Users]),
+  ],
   providers: [
     CategoryResolver,
     CategoriesService,
@@ -27,6 +30,9 @@ import {
     EpisodesResolver,
     EpisodesService,
     AwsS3Service,
+    SeedPodcastsService,
+    SeedEpisodesService,
   ],
+  exports: [CategoriesService, SeedPodcastsService, SeedEpisodesService],
 })
 export class PodcastsModule {}
